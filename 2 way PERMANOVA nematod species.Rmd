@@ -1,0 +1,63 @@
+---
+title: "2 way PERMANOVA qualitative nematod species"
+author: "Marius Buydens"
+date: "22-6-2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Install/load packages
+```{r}
+library("car")
+library("ggpubr")
+library("tidyverse")
+library("vegan")
+library("ggplot2")
+library("readxl")
+```
+
+# Loading and inspecting the datasets
+```{r}
+# read dataset:
+
+nod_and_sed <- read_excel(path = "/Users/lailabuydens/Desktop/excel_scripts_thesis/Nodule_crevice.xlsx", sheet = "Nod_vs_Sed_qual", col_names = TRUE, col_types = NULL, na = "", skip = 0)
+nod_and_sed # check dataset
+```
+
+# testing assumptions: "similar multivariate spread"
+```{r}
+columns <- ncol(nod_and_sed)
+num <- nod_and_sed %>% select(5:(columns - 4))  # select only the numeric values of the input data, otherwise an error when trying to generate distance matrix
+
+
+num_t <- num^(1/2)
+
+num_t
+
+distance_m <- vegdist(num_t, method = "bray") #creating distance matrix
+bd_1 <- (betadisper(distance_m, nod_and_sed$Habitat, type = "centroid")) #conduct PERMDISP on distance matrix
+bd_2 <- (betadisper(distance_m, nod_and_sed$Location, type = "centroid")) #conduct PERMDISP on distance matrix
+boxplot(bd_1)
+boxplot(bd_2)
+
+anova(bd_1)
+anova(bd_2)
+
+#permutest(bd_1)
+permutest(bd_2)
+
+plot(bd_1, hull = FALSE, ellipse = TRUE)
+plot(bd_2, hull = FALSE, ellipse = TRUE)
+```
+
+#PERMANOVA
+```{r}
+adonis(num_t~nod_and_sed$Habitat/nod_and_sed$Location, strata = NULL, permutations = 9999, method = "bray") 
+```
+#PERMANOVA
+```{r}
+adonis(num_t~nod_and_sed$Location/nod_and_sed$Habitat, strata = NULL, permutations = 9999, method = "bray")
+```

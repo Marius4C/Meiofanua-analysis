@@ -1,0 +1,93 @@
+---
+title: "PERMANOVA_qualitative_locations_onlyNod"
+author: "Marius Buydens"
+date: "23-6-2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Install/load packages
+```{r}
+library("car")
+library("ggpubr")
+library("tidyverse")
+library("vegan")
+library("ggplot2") # needed for nMDS plot
+library("readxl")
+```
+
+# Loading and inspecting the dataset
+```{r}
+# read dataset:
+
+my_data <- read_excel(path = "/Users/lailabuydens/Desktop/excel_scripts_thesis/Nodule_crevice.xlsx", sheet = "PERMANOVA_%_onlyNOD", col_names = TRUE, col_types = NULL, na = "", skip = 0)
+my_data # check dataset
+```
+
+#nMDS plot: checking the data
+```{r}
+
+columns <- ncol(my_data)
+num_nod <- my_data %>% select(6:(columns - 5))  # select only the numeric values of the input data, otherwise an error when trying to generate distance matrix
+
+
+nmds = metaMDS(num_nod)                         # by default a square root transformation is carried out
+plot(nmds, type = 'text')
+
+
+stressplot(nmds)   #to check whether the result is decent (large scatter around the line would suggest that original dissimilarities are not well preserved in the reduced number of dimensions)
+
+```
+
+
+#nMDS plot: visualizing the data
+```{r}
+
+#build a data frame with NMDS coordinates and metadata
+NMDS1 <- nmds$points[,1] 
+NMDS2 <- nmds$points[,2]
+
+NMDS = data.frame(NMDS1 = NMDS1, NMDS2 = NMDS2, Location = my_data$Location, num_nod)
+head(NMDS)
+
+# plot ordination
+NODvsLOC <- ggplot(NMDS, aes(x = NMDS1, y = NMDS2, color = Location))+
+  geom_point(position=position_jitter(.1), shape=17, size = 2)+ ##separates overlapping points
+  stat_ellipse(type='t',size =1)+ ##draws 95% confidence interval ellipses
+  theme_minimal()
+NODvsLOC
+```
+
+
+
+# testing assumptions for PERMANOVA: "similar multivariate spread"
+```{r}
+
+num_nod_t <- num_nod^(1/2)                                     # square root transformation
+distance_m <- vegdist(num_nod_t, method = "bray")              # creating distance matrix
+
+# visualization, creating PCoA
+bd = (betadisper(distance_m, my_data$Location, type = "centroid")) # conduct PERMDISP on distance matrix
+boxplot(bd)
+
+anova(bd, permutations = 9999)
+
+
+# result: there is a significant difference (<0.05) of nodule crevice nematod species between the 3 different locations
+
+permutest(bd, permutations = 9999)
+plot(bd, hull = FALSE, ellipse = TRUE)
+
+# result: Permutation test for homogeneity of multivariate dispersions: < 0.05
+```
+
+
+#PERMANOVA
+```{r}
+adonis(num_nod_t~my_data$Location, permutations = 9999, method = "bray")
+```
+
+

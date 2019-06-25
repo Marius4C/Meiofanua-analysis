@@ -1,0 +1,103 @@
+---
+title: "ANOVA thesis MB quantitative data nematods in nodule crevices"
+author: "el mario"
+date: "22/04/2019"
+output: html_document
+---
+# RQ: Do the Boxcore samples (BC's) differ amongst each other in their Nematod content (amount)?
+#     Do the subsamples per BC differ more from each other than between BC's?
+#     1-way ANOVA: Quantitative analysis
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Install/load packages
+```{r}
+library("readxl")
+library("car")
+library("ggpubr")
+library("ggplot2")
+```
+
+# Loading and inspecting the dataset
+
+```{r}
+# read dataset:
+
+my_data <- read_excel(path = "/Users/lailabuydens/Desktop/excel_scripts_thesis/Nodule_crevice.xlsx", sheet = 1, col_names = TRUE, col_types = NULL, na = "", skip = 0)
+head(my_data) # check dataset
+```
+
+```{r}
+# Visualizing the data
+
+ggboxplot(my_data, x = "location_ID", y = "square_root_transform", color = "location", palette = c("#FF8000", "#A5DF00", "#B40431"),
+          order = c("B6SO2", "B4SO3", "B4NO1"),
+          ylab = expression(bold("Total density")), xlab = expression(bold("Location")))
+
+```
+
+
+
+# Before ANOVA: check for assumptions (= data is normally distributed + variances are equal between locations)
+
+```{r}
+
+## testing for normality: visual test with QQ-plots and Shapiro-Wilk normality test PER LOCATION (H0: normal distribution => p<0.05: reject hypothesis => no normal distribution)
+
+# per location check for normal distribution of raw data
+B6S02 <- my_data$raw_data_total[1:15]
+B4S03 <- my_data$raw_data_total[16:30]
+B4N01 <- my_data$raw_data_total[31:45]
+
+# per location check for normal distribution of square root transformed data
+B6S02_sq <- my_data$square_root_transform[1:15]
+B4S03_sq <- my_data$square_root_transform[16:30]
+B4N01_sq <- my_data$square_root_transform[31:45]
+
+# visual check
+par(mfrow = c(2, 3))
+qqPlot(B6S02)
+qqPlot(B4S03)
+qqPlot(B4N01)
+
+qqPlot(B6S02_sq)
+qqPlot(B4S03_sq)
+qqPlot(B4N01_sq)
+
+# check raw data
+shapiro.test(B6S02)
+shapiro.test(B4S03)
+shapiro.test(B4N01)
+# check square root transformation
+shapiro.test(B6S02_sq)
+shapiro.test(B4S03_sq)
+shapiro.test(B4N01_sq)
+
+#results: raw data for B4S03 is not normally distributed
+
+```
+# testing for homogeneity of variances
+```{r}
+
+leveneTest(my_data$square_root_transform, my_data$location, center = mean) 
+
+# result: H0 (= no significant difference in variances between the locations) can't be rejected => variances are homogeneous => assumption is correct
+```
+
+# 1-way ANOVA
+```{r}
+anova = aov(square_root_transform~location, data=my_data)
+summary(anova)
+
+# result: null hypothesis can't be rejected, no significant differences?
+```
+# Tukey test
+```{r}
+test <- TukeyHSD(anova)
+plot(test)
+```
+
+

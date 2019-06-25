@@ -1,0 +1,98 @@
+---
+title: "Thesis stat PERMANOVA qualitative data nodule crevice nematods"
+author: "Marius Buydens"
+date: "18-6-2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#handig voor nMDS plot: https://rstudio-pubs-static.s3.amazonaws.com/246172_1930ddfb5f064b2bab54b11016ab407e.html
+
+# Install/load packages
+```{r}
+library("car")
+library("ggpubr")
+library("tidyverse")
+library("vegan")
+library("ggplot2") # needed for nMDS plot
+library("readxl")
+```
+
+# Loading and inspecting the dataset
+```{r}
+# read dataset:
+
+data <- read_excel(path = "/Users/lailabuydens/Desktop/excel_scripts_thesis/Nodule_crevice.xlsx", sheet = "Nod_vs_Sed_qual", col_names = TRUE, col_types = NULL, na = "", skip = 0)
+data # check dataset
+```
+
+#nMDS plot: visualizing the data
+```{r}
+columns <- ncol(data)
+num <- data %>% select(5:(columns - 4))  # select only the numeric values of the input data, otherwise an error when trying to generate distance matrix
+
+nmds = metaMDS(num)            # by default a square root transformation is carried out
+plot(nmds, type = 'text')
+
+
+stressplot(nmds)   #to check whether the result is decent (large scatter around the line would suggest that original dissimilarities are not well preserved in the reduced number of dimensions)
+
+```
+
+#nMDS plot: visualizing the data
+```{r}
+
+#build a data frame with NMDS coordinates and metadata
+NMDS1 <- nmds$points[,1] 
+NMDS2 <- nmds$points[,2]
+
+NMDS = data.frame(NMDS1 = NMDS1, NMDS2 = NMDS2, Habitat = data$Habitat, num)
+head(NMDS)
+
+# plot ordination
+NODvsSED <- ggplot(NMDS, aes(x = NMDS1, y = NMDS2, color = Habitat))+
+  geom_point(position=position_jitter(.1), shape=17, size = 2)+ ##separates overlapping points
+  stat_ellipse(type='t',size =1)+ ##draws 95% confidence interval ellipses
+  theme_minimal()
+NODvsSED
+
+```
+
+# testing assumptions: "similar multivariate spread"
+```{r}
+num <- data %>% select(6:(columns - 5))       # only numeric data input
+num
+num_t <- num^(1/2)                            # square root transformation
+distance_m <- vegdist(num_t, method = "bray") # creating distance matrix
+
+# visualization, creating PCoA
+bd = (betadisper(distance_m, data$Habitat, type = "centroid")) # conduct PERMDISP on distance matrix
+boxplot(bd)
+
+anova(bd)
+
+
+# result: there is a significant difference (<0.001) between sediment habitat and nodule crevice habitat
+
+permutest(bd)
+plot(bd, hull = FALSE, ellipse = TRUE)
+
+# result: Permutation test for homogeneity of multivariate dispersions: < 0.001 => assumption is met
+```
+
+#PERMANOVA
+```{r}
+adonis(num_t~data$Habitat, permutations = 9999, method = "bray")
+```
+
+
+#SIMPER to assess which specific species are driving the differences
+```{r}
+
+s <- simper(num_t, data$Habitat)
+summary(s, ordered = TRUE)
+```
+
